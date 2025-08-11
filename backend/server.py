@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
+
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -13,6 +14,27 @@ from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
 import asyncio
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to my API!"}
+
+
+
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -414,3 +436,15 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    
+    
+    from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
+# # Serve static files from React build
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# @app.get("/")
+# async def serve_react_app():
+#     return FileResponse(os.path.join("static", "index.html"))

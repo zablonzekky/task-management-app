@@ -4,8 +4,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 import Components from "./Components";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Backend API base URL
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
+
+// WebSocket connection to your backend (update port/path as needed)
+const socket = new WebSocket("ws://localhost:8001/ws");
+socket.onopen = () => console.log("WebSocket connected");
+socket.onerror = (err) => console.error("WebSocket error:", err);
 
 // Auth Context
 const AuthContext = createContext();
@@ -13,7 +19,7 @@ const AuthContext = createContext();
 const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -23,9 +29,9 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       fetchCurrentUser();
     } else {
       setLoading(false);
@@ -36,9 +42,9 @@ const AuthProvider = ({ children }) => {
     try {
       const response = await axios.get(`${API}/auth/me`);
       setUser(response.data);
-    } catch (error) {
-      localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
+    } catch {
+      localStorage.removeItem("token");
+      delete axios.defaults.headers.common["Authorization"];
     } finally {
       setLoading(false);
     }
@@ -48,20 +54,20 @@ const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post(`${API}/auth/login`, { username, password });
       const { access_token, user: userData } = response.data;
-      
-      localStorage.setItem('token', access_token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+
+      localStorage.setItem("token", access_token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
       setUser(userData);
-      
+
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.response?.data?.detail || 'Login failed' };
+      return { success: false, error: error.response?.data?.detail || "Login failed" };
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+    localStorage.removeItem("token");
+    delete axios.defaults.headers.common["Authorization"];
     setUser(null);
   };
 
@@ -86,11 +92,8 @@ const Login = () => {
     setError("");
 
     const result = await login(username, password);
-    
-    if (!result.success) {
-      setError(result.error);
-    }
-    
+    if (!result.success) setError(result.error);
+
     setLoading(false);
   };
 
@@ -102,7 +105,7 @@ const Login = () => {
           <h1>Task Manager</h1>
           <p>Sign in to your account</p>
         </div>
-        
+
         <form onSubmit={handleLogin} className="login-form">
           {error && (
             <div className="error-alert">
@@ -110,7 +113,7 @@ const Login = () => {
               {error}
             </div>
           )}
-          
+
           <div className="form-group">
             <label htmlFor="username">Username</label>
             <input
@@ -123,7 +126,7 @@ const Login = () => {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
@@ -136,23 +139,19 @@ const Login = () => {
               required
             />
           </div>
-          
-          <button
-            type="submit"
-            disabled={loading}
-            className="login-button"
-          >
+
+          <button type="submit" disabled={loading} className="login-button">
             {loading ? (
               <>
                 <Components.LoadingIcon />
                 Signing in...
               </>
             ) : (
-              'Sign in'
+              "Sign in"
             )}
           </button>
         </form>
-        
+
         <div className="login-footer">
           <p>Default Admin: username=admin, password=admin123</p>
         </div>
@@ -176,7 +175,7 @@ const Dashboard = () => {
       const response = await axios.get(`${API}/dashboard/stats`);
       setStats(response.data);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
     } finally {
       setLoading(false);
     }
@@ -195,121 +194,24 @@ const Dashboard = () => {
     <div className="dashboard">
       <div className="dashboard-header">
         <h1>Welcome back, {user?.full_name}</h1>
-        <p>{user?.role === 'admin' ? 'Administrator Dashboard' : 'Your Tasks Overview'}</p>
+        <p>{user?.role === "admin" ? "Administrator Dashboard" : "Your Tasks Overview"}</p>
       </div>
-      
+
       <div className="stats-grid">
-        {user?.role === 'admin' ? (
+        {user?.role === "admin" ? (
           <>
-            <div className="stats-card stats-card-total">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.UsersIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.total_users || 0}</h3>
-                  <p>Total Users</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="stats-card stats-card-total">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.TasksIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.total_tasks || 0}</h3>
-                  <p>Total Tasks</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="stats-card stats-card-pending">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.PendingIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.pending_tasks || 0}</h3>
-                  <p>Pending Tasks</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="stats-card stats-card-progress">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.ProgressIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.in_progress_tasks || 0}</h3>
-                  <p>In Progress</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="stats-card stats-card-completed">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.CompletedIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.completed_tasks || 0}</h3>
-                  <p>Completed</p>
-                </div>
-              </div>
-            </div>
+            <StatsCard icon={<Components.UsersIcon />} value={stats.total_users} label="Total Users" />
+            <StatsCard icon={<Components.TasksIcon />} value={stats.total_tasks} label="Total Tasks" />
+            <StatsCard icon={<Components.PendingIcon />} value={stats.pending_tasks} label="Pending Tasks" />
+            <StatsCard icon={<Components.ProgressIcon />} value={stats.in_progress_tasks} label="In Progress" />
+            <StatsCard icon={<Components.CompletedIcon />} value={stats.completed_tasks} label="Completed" />
           </>
         ) : (
           <>
-            <div className="stats-card stats-card-total">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.TasksIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.my_tasks || 0}</h3>
-                  <p>My Tasks</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="stats-card stats-card-pending">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.PendingIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.pending_tasks || 0}</h3>
-                  <p>Pending</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="stats-card stats-card-progress">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.ProgressIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.in_progress_tasks || 0}</h3>
-                  <p>In Progress</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="stats-card stats-card-completed">
-              <div className="stats-content">
-                <div className="stats-icon">
-                  <Components.CompletedIcon />
-                </div>
-                <div className="stats-text">
-                  <h3>{stats.completed_tasks || 0}</h3>
-                  <p>Completed</p>
-                </div>
-              </div>
-            </div>
+            <StatsCard icon={<Components.TasksIcon />} value={stats.my_tasks} label="My Tasks" />
+            <StatsCard icon={<Components.PendingIcon />} value={stats.pending_tasks} label="Pending" />
+            <StatsCard icon={<Components.ProgressIcon />} value={stats.in_progress_tasks} label="In Progress" />
+            <StatsCard icon={<Components.CompletedIcon />} value={stats.completed_tasks} label="Completed" />
           </>
         )}
       </div>
@@ -317,10 +219,22 @@ const Dashboard = () => {
   );
 };
 
+const StatsCard = ({ icon, value, label }) => (
+  <div className="stats-card">
+    <div className="stats-content">
+      <div className="stats-icon">{icon}</div>
+      <div className="stats-text">
+        <h3>{value || 0}</h3>
+        <p>{label}</p>
+      </div>
+    </div>
+  </div>
+);
+
 // Layout Component
 const Layout = ({ children }) => {
   const { user, logout } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState("dashboard");
 
   return (
     <div className="app-layout">
@@ -329,40 +243,18 @@ const Layout = ({ children }) => {
           <Components.TaskManagerIcon />
           <h2>Task Manager</h2>
         </div>
-        
+
         <div className="nav-menu">
-          <button
-            onClick={() => setCurrentPage('dashboard')}
-            className={`nav-item ${currentPage === 'dashboard' ? 'nav-item-active' : 'nav-item-inactive'}`}
-          >
-            <Components.DashboardIcon />
-            Dashboard
-          </button>
-          
-          <button
-            onClick={() => setCurrentPage('tasks')}
-            className={`nav-item ${currentPage === 'tasks' ? 'nav-item-active' : 'nav-item-inactive'}`}
-          >
-            <Components.TasksIcon />
-            Tasks
-          </button>
-          
-          {user?.role === 'admin' && (
-            <button
-              onClick={() => setCurrentPage('users')}
-              className={`nav-item ${currentPage === 'users' ? 'nav-item-active' : 'nav-item-inactive'}`}
-            >
-              <Components.UsersIcon />
-              Users
-            </button>
+          <NavButton label="Dashboard" icon={<Components.DashboardIcon />} active={currentPage === "dashboard"} onClick={() => setCurrentPage("dashboard")} />
+          <NavButton label="Tasks" icon={<Components.TasksIcon />} active={currentPage === "tasks"} onClick={() => setCurrentPage("tasks")} />
+          {user?.role === "admin" && (
+            <NavButton label="Users" icon={<Components.UsersIcon />} active={currentPage === "users"} onClick={() => setCurrentPage("users")} />
           )}
         </div>
-        
+
         <div className="sidebar-footer">
           <div className="user-info">
-            <div className="user-avatar">
-              {user?.full_name?.charAt(0).toUpperCase()}
-            </div>
+            <div className="user-avatar">{user?.full_name?.charAt(0).toUpperCase()}</div>
             <div className="user-details">
               <p className="user-name">{user?.full_name}</p>
               <p className="user-role">{user?.role}</p>
@@ -374,15 +266,22 @@ const Layout = ({ children }) => {
           </button>
         </div>
       </nav>
-      
+
       <main className="main-content">
-        {currentPage === 'dashboard' && <Dashboard />}
-        {currentPage === 'tasks' && <Components.TasksPage />}
-        {currentPage === 'users' && user?.role === 'admin' && <Components.UsersPage />}
+        {currentPage === "dashboard" && <Dashboard />}
+        {currentPage === "tasks" && <Components.TasksPage />}
+        {currentPage === "users" && user?.role === "admin" && <Components.UsersPage />}
       </main>
     </div>
   );
 };
+
+const NavButton = ({ label, icon, active, onClick }) => (
+  <button onClick={onClick} className={`nav-item ${active ? "nav-item-active" : "nav-item-inactive"}`}>
+    {icon}
+    {label}
+  </button>
+);
 
 // Main App Component
 function App() {
@@ -411,14 +310,8 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
-      />
-      <Route
-        path="/*"
-        element={user ? <Layout /> : <Navigate to="/login" replace />}
-      />
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/*" element={user ? <Layout /> : <Navigate to="/login" replace />} />
     </Routes>
   );
 };
